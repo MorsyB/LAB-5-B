@@ -1,119 +1,115 @@
 import random
 import numpy as np
 from IPython.core.display_functions import clear_output
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.neural_network import MLPClassifier
+
+RELU = 'relu'
+TANH = 'tanh'
 
 
-class generic_algorith:
-     def execute(self, pop_size, generations, threshold, x, y, network):
-         class Agent:
-             def __init__(self, network):
-                 class neural_network:
-                     def __init__(self, network):
-                         self.weights = []
-                         self.activations = []
-                         for layer in network:
-                             if layer[0] != None:
-                                 input_size = layer[0]
-                             else:
-                                 input_size = network[network.index(layer) - 1][1]
-                             output_size = layer[1]
-                             activation = layer[2]
-                             self.weights.append(np.random.randn(input_size, output_size))
-                             self.activations.append(activation)
+class NeuralNetwork:
+    def __init__(self, depth, hidden, activate):
+        self.depth = depth
+        self.hidden = hidden
+        self.activateFunction = activate
 
-                     def propagate(self, data):
-                         input_data = data
-                         for i in range(len(self.weights)):
-                             z = np.dot(input_data, self.weights[i])
-                             a = self.activations[i](z)
-                             input_data = a
-                         yhat = a
-                         return yhat
 
-                 self.neural_network = neural_network(network)
-                 self.fitness = 0
+class Citizen:
+    def __init__(self):
+        hidden = []
+        depth = random.randint(1, 10)
+        for i in range(depth):
+            tmp = random.randint(2, 200)
+            hidden.append(tmp)
 
-             def __str__(self):
-                 return 'LOSS: ' + str(self.fitness[0])
+        if random.randint(0, 2) == 0:
+            activate = RELU
+        else:
+            activate = TANH
 
-         def generate_agents(population, network):
-             return [Agent(network) for _ in range(population)]
+        self.network = NeuralNetwork(depth, hidden, activate)
+        self.fitness = -1
+        self.reg = 0
 
-         def fitness(agents, x, y):
-             for agentosh in agents:
-                 yhat = agentosh.neural_network.propagate(x)
-                 cost = (yhat - y) ** 2
-                 agentosh.fitness = sum(cost)
-             return agents
 
-         def selection(agents):
-             agents = sorted(agents, key=lambda agent: agent.fitness, reverse=False)
-             print('\n'.join(map(str, agents)))
-             agents = agents[:int(0.2 * len(agents))]
-             return agents
+class GA:
+    def __init__(self, popSize, maxIter, X_train, Y_train, X_test, Y_test):
+        self.population = []
+        self.buffer = []
+        self.popSize = popSize
+        self.eliteRate = 0.1
+        self.maxIter = maxIter
+        self.X_train = X_train
+        self.Y_train = Y_train
+        self.X_test = X_test
+        self.Y_test = Y_test
 
-         def unflatten(flattened, shapes):
-             newarray = []
-             index = 0
-             for shape in shapes:
-                 size = np.product(shape)
-                 newarray.append(flattened[index: index + size].reshape(shape))
-                 index += size
-             return newarray
+        self.initPopulation()
 
-         def crossover(agents, network, pop_size):
-             offspring = []
-             for _ in range((pop_size - len(agents)) // 2):
-                 parent1 = random.choice(agents)
-                 parent2 = random.choice(agents)
-                 child1 = Agent(network)
-                 child2 = Agent(network)
+    def initPopulation(self):
+        for _ in range(self.popSize):
+            self.population.append(Citizen())
+            self.buffer.append(Citizen())
 
-                 shapes = [a.shape for a in parent1.neural_network.weights]
+    def calcFitness(self):
+        for i in range(self.popSize):
+            cls = MLPClassifier(hidden_layer_sizes=self.population[i].network.hidden, max_iter=69000,
+                                activation=self.population[i].network.activateFunction, solver='adam', random_state=1)
+            cls.fit(self.X_train, self.Y_train)
+            predict = cls.predict(self.X_test)
+            cMat = confusion_matrix(predict, self.Y_test)
+            sum = cMat.sum()
+            dSum = cMat.trace()
+            self.population[i].fitness = dSum / sum
+            self.population[i].reg = 0
 
-                 genes1 = np.concatenate([a.flatten() for a in parent1.neural_network.weights])
-                 genes2 = np.concatenate([a.flatten() for a in parent2.neural_network.weights])
+    def sortByFitness(self):
+        self.population.sort(key=lambda x: - x.fitness)
 
-                 split = random.randint(0, len(genes1) - 1)
-                 child1_genes = np.array(genes1[0:split].tolist() + genes2[split:].tolist())
-                 child2_genes = np.array(genes1[0:split].tolist() + genes2[split:].tolist())
+    def mate(self):
+        for i in range(self.popSize):
+            i1 = random.randint(0, self.popSize - 1)
+            i2 = random.randint(0, self.popSize - 1)
+            while i2 == i1:
+                i2 = random.randint(0, self.popSize - 1)
+            spos = random.randint(0, min(self.population[i1].network.depth, self.population[i2].network.depth))
+            self.buffer[i].network.hidden = self.population[i1].network.hidden[0: spos] + self.population[
+                                                                                              i2].network.hidden[spos:]
+            self.buffer[i].network.depth = len(self.buffer[i].network.hidden)
 
-                 child1.neural_network.weights = unflatten(child1_genes, shapes)
-                 child2.neural_network.weights = unflatten(child2_genes, shapes)
+    def swap(self):
+        temp = self.population
+        self.population = self.buffer
+        self.buffer = temp
 
-                 offspring.append(child1)
-                 offspring.append(child2)
-             agents.extend(offspring)
-             return agents
+    def printBest(self, best):
+        print()
+        print("BEST CITIZEN :")
+        print("FITNESS = ", best.fitness)
 
-         def mutation(agents):
-             for agent in agents:
-                 if random.uniform(0.0, 1.0) <= 0.1:
-                     W = agent.neural_network.weights
-                     shapes = [a.shape for a in W]
-                     flattened = np.concatenate([a.flatten() for a in W])
-                     randint = random.randint(0, len(flattened) - 1)
-                     flattened[randint] = np.random.randn()
-                     newarray = []
-                     indeweights = 0
-                     for shape in shapes:
-                         size = np.product(shape)
-                         newarray.append(flattened[indeweights: indeweights + size].reshape(shape))
-                         indeweights += size
-                     agent.neural_network = newarray
-             return agents
-
-         for i in range(generations):
-             print('Generetions', str(i), ':')
-             agents = generate_agents(pop_size, network)
-             agents = fitness(agents, x, y)
-             agents = selection(agents)
-             agents = crossover(agents, network, pop_size)
-             agents = mutation(agents)
-             agents = fitness(agents, x, y)
-
-             if any(agents.fitness < threshold for agentush in agents):
-                 print('Threshold met at generation ' + str(i) + ' !')
-             if i % 100:
-                 clear_output()
-         return agents[0]
+    def run(self):
+        self.calcFitness()
+        self.sortByFitness()
+        best = self.population[0]
+        for i in range(self.maxIter):
+            self.calcFitness()
+            self.sortByFitness()
+            if self.population[0].fitness > best.fitness:
+                best = self.population[0]
+            self.printBest(best)
+            self.mate()
+        print()
+        # print("Best solution overall:")
+        print("Best solution accuracy:")
+        print(best.fitness)
+        print("Train accuracy:")
+        print(best.fitness)
+        print('Best solution depth: ', best.network.depth)
+        print('Best solution layers: ', best.network.hidden)
+        print('Best solution activation: ', best.network.activateFunction)
+        cls = MLPClassifier(hidden_layer_sizes=self.population[i].network.hidden, max_iter=69000,
+                            activation=self.population[i].network.activateFunction, solver='adam', random_state=1)
+        cls.fit(self.X_train, self.Y_train)
+        predict = cls.predict(self.X_test)
+        print(classification_report(self.Y_test, predict,zero_division=0))
