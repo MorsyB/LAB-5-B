@@ -201,6 +201,7 @@ if __name__ == '__main__':
     train, test, train_vec, test_vec = train_test_split(normalized, label, stratify=label, test_size=0.2,
                                                         random_state=1)
     mycsv.calc_acc(train,train_vec,test,test_vec)
+
     ga = GA(8, 8, train, train_vec, test, test_vec)
     ga.run()
     """

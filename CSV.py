@@ -12,8 +12,6 @@ class CSV:
         self.path=path
         self.data,self.laber=self.read_data()
 
-
-
     def read_data(self):
         file = pandas.read_csv("data\\" + self.path, header=None)
         file = file.values
@@ -30,53 +28,56 @@ class CSV:
         #print(len(label))
         return data, label
 
-    def softmax(self,x):
-        return np.exp(x) / np.sum(np.exp(x), axis=0)
+    def update_max(self,max,j,index,max_index):
+        if j > max:
+            return j,index
+        return max,max_index
 
+    def calc_softmax_pred(self,predictions):
+        predicted_labels = []
+        counter=0
+        for x in predictions:
+            index = 0
+            max_index = 0
+            max = -1
+            max_array = np.exp(x) / np.sum(np.exp(x), axis=0)
+
+            print(f'{counter}:   {max_array}')
+            for j in max_array:
+                max,max_index=self.update_max(max,j,index,max_index)
+                index += 1
+
+            predicted_labels.append(max_index)
+            counter += 1
+        print(f'softmax result is::   {predicted_labels}')
+        return predicted_labels
+
+    def calc_micro(self,predicted_labels,test_vec):
+        answers = [0, 0, 0, 0, 0, 0]
+        results = [0, 0, 0, 0, 0, 0]
+        TP = 0
+        for predection, test in zip(predicted_labels, test_vec):
+            answers[predection] += 1
+            if predection == test:
+                results[predection] += 1
+                TP += 1
+        print(f'Micro Result is: {TP / 43}')
+        return answers,results
+
+    def calc_macro(self,number_of_answer,number_of_correct):
+        final_result = 0
+        for answer, result in zip(number_of_answer, number_of_correct):
+            final_result += (result/answer)
+
+        print(f'Macro result is : {final_result / 6}')
 
     def calc_acc(self,train,train_vec,test,test_vec):
         mlp = MLPClassifier(random_state=1, max_iter=8000000).fit(train, train_vec)
-
-        print(mlp)
+        #print(mlp)
         predict = mlp.predict_proba(test)
-        print(predict)
-        i = 0
-        predicted_labels = []
+        #print(predict)
+        predicted_labels=self.calc_softmax_pred(predict)
+        number_of_answer,number_of_correct =self.calc_micro(predicted_labels,test_vec)
+        self.calc_macro(number_of_answer,number_of_correct)
 
-        for x in predict:
-            index = 0
-            maximal_index = 0
-            softmaX = self.softmax(x)
-            max = -1
 
-            print(f'{i}:   {softmaX}')
-            for j in softmaX:
-                if j > max:
-                    max = j
-                    maximal_index = index
-                index += 1
-
-            predicted_labels.append(maximal_index)
-            i += 1
-
-        print(f'softmax prediction:   {predicted_labels}')
-        ##micro
-        number_of_answer = [0, 0, 0, 0, 0, 0]
-        number_of_correct = [0, 0, 0, 0, 0, 0]
-        TP = 0
-        FP = 0
-        for i, j in zip(predicted_labels, test_vec):
-            # print(f'i:   {i},   j:   {j}')
-            number_of_answer[i] += 1  # mnzed akmn jwab 3ena mnhad elno3
-            if i == j:
-                number_of_correct[i] += 1
-                TP += 1
-        print(f'Micro: {TP / 43}')
-
-        # Macro
-        final_grade = 0
-        for i, j in zip(number_of_answer, number_of_correct):
-            x = (j / i)
-            final_grade += x
-            # print(f'i:   {i},   j:   {j}')
-        print(f'Macro: {final_grade / 6}')

@@ -18,18 +18,18 @@ class NeuralNetwork:
 
 class Citizen:
     def __init__(self):
-        hidden = []
+        citizen_array = []
         depth = random.randint(1, 10)
         for i in range(depth):
             tmp = random.randint(2, 200)
-            hidden.append(tmp)
+            citizen_array.append(tmp)
 
         if random.randint(0, 2) == 0:
             activate = RELU
         else:
             activate = TANH
 
-        self.network = NeuralNetwork(depth, hidden, activate)
+        self.network = NeuralNetwork(depth, citizen_array, activate)
         self.fitness = -1
         self.reg = 0
 
@@ -105,6 +105,20 @@ class GA:
             return member
         return best
 
+    def regression(self):
+        for i in range(self.popSize):
+            cls = MLPClassifier(hidden_layer_sizes=self.population[i].network.hidden, max_iter=69000,
+                                activation=self.population[i].network.activateFunction, solver='adam', random_state=1)
+            sum=0
+            for j in range(len(cls.coefs_)):
+                for k in range(len(cls.coefs_[j])):
+                    sum+=cls.coefs_[j][k]* cls.coefs_[j][k]
+
+            c= self.cacl_creg(self.population[i])
+            self.population[i].reg=sum*(1/c)*(len(self.X_train))
+
+
+
 
     def print_results(self,best):
         print("Classifier Report: ")
@@ -135,4 +149,4 @@ class GA:
         print("Best Train accuracy:")
         print(best.fitness)
         self.print_results(best)
-        Graph.draw(graph_arr)
+        #Graph.draw(graph_arr)
