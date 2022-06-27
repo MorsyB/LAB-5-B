@@ -3,6 +3,7 @@ import numpy as np
 from IPython.core.display_functions import clear_output
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.neural_network import MLPClassifier
+import Graph
 
 RELU = 'relu'
 TANH = 'tanh'
@@ -77,6 +78,13 @@ class GA:
             self.buffer[i].network.hidden = self.population[i1].network.hidden[0: spos] + self.population[
                                                                                               i2].network.hidden[spos:]
             self.buffer[i].network.depth = len(self.buffer[i].network.hidden)
+            #if random.random() < 0.25* random.random():
+                #self.mutate(self.buffer[i])
+
+    def mutate(self,member):
+        ipos = random.randint(0, member.network.depth)
+        delta = random.randint(2, 200)
+        member.network.hidden[ipos] = delta
 
     def swap(self):
         temp = self.population
@@ -88,28 +96,43 @@ class GA:
         print("BEST CITIZEN :")
         print("FITNESS = ", best.fitness)
 
+    def updateBest(self,best):
+        if self.population[0].fitness > best.fitness:
+            member = Citizen()
+            member.network = self.population[0].network
+            member.reg = self.population[0].reg
+            member.fitness = self.population[0].fitness
+            return member
+        return best
+
+
+    def print_results(self,best):
+        print("Classifier Report: ")
+        cls = MLPClassifier(hidden_layer_sizes=best.network.hidden, max_iter=69000,
+                            activation=best.network.activateFunction, solver='adam', random_state=1)
+        cls.fit(self.X_train, self.Y_train)
+        predict = cls.predict(self.X_test)
+        print(classification_report(self.Y_test, predict, zero_division=0))
+
     def run(self):
+        graph_arr=[]
         self.calcFitness()
         self.sortByFitness()
-        best = self.population[0]
+        member= Citizen()
+        member.network=self.population[0].network
+        member.reg=self.population[0].reg
+        member.fitness =self.population[0].fitness
+        best = member
         for i in range(self.maxIter):
             self.calcFitness()
             self.sortByFitness()
-            if self.population[0].fitness > best.fitness:
-                best = self.population[0]
+            best=self.updateBest(best)
             self.printBest(best)
             self.mate()
+            self.swap()
+            graph_arr.append(best.fitness)
         print()
-        # print("Best solution overall:")
-        print("Best solution accuracy:")
+        print("Best Train accuracy:")
         print(best.fitness)
-        print("Train accuracy:")
-        print(best.fitness)
-        print('Best solution depth: ', best.network.depth)
-        print('Best solution layers: ', best.network.hidden)
-        print('Best solution activation: ', best.network.activateFunction)
-        cls = MLPClassifier(hidden_layer_sizes=self.population[i].network.hidden, max_iter=69000,
-                            activation=self.population[i].network.activateFunction, solver='adam', random_state=1)
-        cls.fit(self.X_train, self.Y_train)
-        predict = cls.predict(self.X_test)
-        print(classification_report(self.Y_test, predict,zero_division=0))
+        self.print_results(best)
+        Graph.draw(graph_arr)

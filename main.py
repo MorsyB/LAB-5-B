@@ -10,6 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import visualize
+from CSV import *
+import neat
 
 xor_inputs = [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)]
 xor_outputs = [(0.0,), (1.0,), (1.0,), (0.0,)]
@@ -19,27 +21,12 @@ def softmax(x):
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 
-import neat
-
-
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 
 def Relu(x):
     return x * (x > 0)
-
-
-def read_data(filename):
-    file = pandas.read_csv("data\\" + filename, header=None)
-    file = file.values
-    data, label = file[:, 1:-1], file[:, -1]
-
-    label = LabelEncoder().fit_transform(label)
-    print(f'data: {data}')
-    print(f'label: {label}')
-    return data, label
-
 
 class generic_algorith:
     def execute(self, pop_size, generations, threshold, x, y, network):
@@ -207,70 +194,13 @@ def run(config_file):
 
 
 if __name__ == '__main__':
-
-    data, label = read_data("glass.data")
+    mycsv= CSV("glass.data")
+    data, label = mycsv.read_data()
     normalized = DataFrame(MinMaxScaler().fit_transform(data))
 
     train, test, train_vec, test_vec = train_test_split(normalized, label, stratify=label, test_size=0.2,
                                                         random_state=1)
-    mlp = MLPClassifier(random_state=1, max_iter=8000000).fit(train, train_vec)
-    print(mlp)
-    predict = mlp.predict_proba(test)
-    print(predict)
-    i = 0
-    predicted_labels = []
-    for x in predict:
-        index = 0
-        maximal_index = 0
-        softmaX = softmax(x)
-        max = -1
-
-        print(f'{i}:   {softmaX}')
-        for j in softmaX:
-            if j > max:
-                max = j
-                maximal_index = index
-            index += 1
-
-        predicted_labels.append(maximal_index)
-        i += 1
-
-    print(f'softmax prediction:   {predicted_labels}')
-    ##micro
-    number_of_answer = [0, 0, 0, 0, 0, 0]
-    number_of_correct = [0, 0, 0, 0, 0, 0]
-    TP = 0
-    FP = 0
-    for i, j in zip(predicted_labels, test_vec):
-        # print(f'i:   {i},   j:   {j}')
-        number_of_answer[i] += 1  # mnzed akmn jwab 3ena mnhad elno3
-        if i == j:
-            number_of_correct[i] += 1
-            TP += 1
-    print(f'Micro: {TP / 43}')
-
-    # Macro
-    final_grade = 0
-    for i, j in zip(number_of_answer, number_of_correct):
-        x = (j / i)
-        final_grade += x
-        # print(f'i:   {i},   j:   {j}')
-    print(f'Macro: {final_grade / 6}')
-    # with shay code:
-    # x = X_train
-    # y = y_train
-    x = np.array([[0, 0, 1], [1, 1, 1], [1, 0, 1], [0, 1, 1]])
-    y = np.array([[0, 1, 1, 0]]).T
-    network = [[3, 10, Relu], [None, 1, Relu]]
-    # nt = neural_network(network)
-    # nt.propagate(x)
-    ga = generic_algorith()
-    agent = ga.execute(100, 100, 0.1, x, y, network)
-    weights = agent.neural_network.weights
-    # print(agent.fitness)
-    # print(agent.neural_network.propagate(x))
-    # print(agent.neural_network.weights)
-
+    mycsv.calc_acc(train,train_vec,test,test_vec)
     ga = GA(8, 8, train, train_vec, test, test_vec)
     ga.run()
     """
