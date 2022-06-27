@@ -194,6 +194,14 @@ def run(config_file):
 
 
 if __name__ == '__main__':
+    print('#########################################################################')
+    print('LAB 5-B')
+    print('MORSY BIADSY ID:318241221 \t SAMER NAJJAR ID:207477522')
+    print('#########################################################################')
+    print()
+    print("STARTING NOW...")
+    print()
+
     mycsv= CSV("glass.data")
     data, label = mycsv.read_data()
     normalized = DataFrame(MinMaxScaler().fit_transform(data))
@@ -204,5 +212,4 @@ if __name__ == '__main__':
 
     ga = GA(8, 8, train, train_vec, test, test_vec)
     ga.run()
-    """
-    """
+
